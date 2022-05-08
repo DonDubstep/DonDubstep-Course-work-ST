@@ -71,7 +71,7 @@ def chat(ser,ser2):
     in_st2 = []
 
     # функция приема строки
-    def fn_in():
+    def fn_in():   #####################################
         global counter
         global in_list
         global in_st
@@ -82,7 +82,7 @@ def chat(ser,ser2):
                     if ser.is_open:
                         data_to_read = ser.in_waiting
                         in_st = ser.ft_read(data_to_read)
-                        if in_st == "ACK_LINKACTIVE":
+                        if in_st.find("ACK_LINKACTIVE") != -1:
                             listbox.insert(tk.END,
                                            "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "]" + " LINKACTIVE")
                             listbox.itemconfig(counter, {'fg': 'gray'})
@@ -91,9 +91,28 @@ def chat(ser,ser2):
                         elif in_st[:8] == "Username":
                             ser.another_username = in_st[8:]
                             in_st = []
-                        else:
+                        elif in_st.find("|") != -1:
                             if in_st != '':
-                                in_list.append(in_st)
+                                dest = ""
+                                source = ""
+                                cnt = 0
+                                in_st = in_st[in_st.find("|")+1:]
+                                for i in in_st:
+                                    if i != "|":
+                                        source+=i
+                                    else:
+                                        cnt+=1
+                                        if cnt >1: break
+                                        dest = source
+                                        source = ""
+                                if dest != ser.username:
+                                    fn_send2("|" + in_st)
+                                else:
+                                    in_st = in_st.replace(dest+"|"+source+"|","")
+                                    if source == ser.another_username:
+                                        in_list.append(in_st)
+                                    else:
+                                        in_list2.append(in_st)
                 time.sleep(1)  ##-- CPU не будет нагреваться до 100C
 
     def fn_in2():
@@ -116,9 +135,6 @@ def chat(ser,ser2):
                         elif in_st2[:8] == "Username":
                             ser2.another_username = in_st2[8:]
                             in_st2 = []
-                        else:
-                            if in_st2 != '':
-                                in_list2.append(in_st2)
                 time.sleep(1)  ##-- CPU не будет нагреваться до 100C
 
 
@@ -157,45 +173,49 @@ def chat(ser,ser2):
     global buffer_for_source_message
     buffer_for_source_message = []
 
+
+    global buffer_for_source_message2
+    buffer_for_source_message2 = []
+
     def fn_send():
         global counter
         # global user_name
         out_st = enter.get()
         if len(out_st) > 0:
-            ser.ft_write((out_st + '\r\n'))
+            ser2.ft_write("|"+ser.another_username +"|" + ser.username + "|" + out_st + '\r\n')
             listbox.insert(tk.END,
                            "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + ser.username + ": " + out_st)
             listbox.itemconfig(counter, {'fg': 'blue'})
             counter += 1
             buffer_for_source_message.append(
                 "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + ser.username + ": " + out_st)
-            try:
-                listbox_source.insert(tk.END, "[" + datetime.strftime(datetime.now(),
-                                                                   "%H:%M:%S") + "] " + ser.username + ": " + out_st)
-            except:
-                print("Source message window is closed")
+            # try:
+            #     listbox_source.insert(tk.END, "[" + datetime.strftime(datetime.now(),
+            #                                                        "%H:%M:%S") + "] " + ser.username + ": " + out_st)
+            # except:
+            #     print("Source message window is closed")
         enter.delete(0, tk.END)
 
-    global buffer_for_source_message2
-    buffer_for_source_message2 = []
-
-    def fn_send2():
+    def fn_send2(out_st=""):
         global counter2
         # global user_name
+        if out_st != "":
+            ser2.ft_write(out_st + '\r\n')
+            return
         out_st = enter2.get()
         if len(out_st) > 0:
-            ser2.ft_write((out_st + '\r\n'))
+            ser2.ft_write("|" + ser2.another_username +"|" + ser2.username + "|" + out_st + '\r\n')
             listbox2.insert(tk.END,
                            "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + ser2.username + ": " + out_st)
             listbox2.itemconfig(counter2, {'fg': 'blue'})
             counter2 += 1
             buffer_for_source_message2.append(
                 "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + ser2.username + ": " + out_st)
-            try:
-                listbox_source2.insert(tk.END, "[" + datetime.strftime(datetime.now(),
-                                                                   "%H:%M:%S") + "] " + ser2.username + ": " + out_st)
-            except:
-                print("Source message window is closed")
+            # try:
+            #     listbox_source2.insert(tk.END, "[" + datetime.strftime(datetime.now(),
+            #                                                        "%H:%M:%S") + "] " + ser2.username + ": " + out_st)
+            # except:
+            #     print("Source message window is closed")
         enter2.delete(0, tk.END)
 
     ## == вывести строки в листбокс
@@ -207,8 +227,6 @@ def chat(ser,ser2):
         global out_flag
         while len(in_list) > 0:
             st = in_list.pop(0)
-            # print(type(st))
-            # print(st)
             if ser.another_username != None:
                 listbox.insert(tk.END, "[" + datetime.strftime(datetime.now(),
                                                             "%H:%M:%S") + "] " + ser.another_username + ": " + st)
@@ -221,10 +239,10 @@ def chat(ser,ser2):
                 listbox.itemconfig(counter, {'fg': 'red'})
                 counter += 1
                 buffer_for_dest_message.append("[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + ">>> " + st)
-            try:
-                listbox_dest.insert(tk.END, st)
-            except:
-                print("Destination message window is closed")
+            # try:
+            #     listbox_dest.insert(tk.END, st)
+            # except:
+            #     print("Destination message window is closed")
         if out_flag:
             fn_send()
             out_flag = 0
@@ -238,8 +256,6 @@ def chat(ser,ser2):
         global out_flag2
         while len(in_list2) > 0:
             st = in_list2.pop(0)
-            # print(type(st))
-            # print(st)
             if ser2.another_username != None:
                 listbox2.insert(tk.END, "[" + datetime.strftime(datetime.now(),
                                                             "%H:%M:%S") + "] " + ser2.another_username + ": " + st)
@@ -252,10 +268,10 @@ def chat(ser,ser2):
                 listbox2.itemconfig(counter2, {'fg': 'red'})
                 counter2 += 1
                 buffer_for_dest_message2.append("[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + ">>> " + st)
-            try:
-                listbox_dest2.insert(tk.END, st)
-            except:
-                print("Destination message window is closed")
+            # try:
+            #     listbox_dest2.insert(tk.END, st)
+            # except:
+            #     print("Destination message window is closed")
         if out_flag2:
             fn_send2()
             out_flag2 = 0
@@ -269,7 +285,7 @@ def chat(ser,ser2):
     x_cordinate = int((screen_width/2) - (716/2))
     y_cordinate = int((screen_height/2) - (400/2))
 
-    window.geometry("900x500+{}+{}".format(x_cordinate, y_cordinate-50))
+    window.geometry("800x400+{}+{}".format(x_cordinate, y_cordinate-50))
     #window.geometry('716x400')
     window.configure(bg='#DCDCDC')
 
@@ -319,6 +335,7 @@ def chat(ser,ser2):
                 button_open.config(text="Открыть порт")
                 button_display.config(state=tk.DISABLED)
                 counter += 1
+                ##  Закрыть потоки
 
     def open_port2():
         global counter2
@@ -344,6 +361,7 @@ def chat(ser,ser2):
                 button_open2.config(text="Открыть порт")
                 button_display2.config(state=tk.DISABLED)
                 counter2 += 1
+                ##  Закрыть потоки
 
 
     button_open = tk.Button(window, text="Открыть порт", command=open_port, bg='white')
@@ -354,12 +372,7 @@ def chat(ser,ser2):
     button_open2.focus_set()
     button_open2.place(x=700, y=0, width=100, height=40)
 
-    chat_name1 = "Name1"
-    chat_name2 = "Name2"
-    button_open = tk.Button(window, text="Чат: " + chat_name1, bg='white')#correct command!
-    button_open.place(x=600, y=40, width=100, height=40)
-    button_open = tk.Button(window, text="Чат: " + chat_name2, bg='white')#correct command!
-    button_open.place(x=600, y=80, width=100, height=40)
+
 
 
 
