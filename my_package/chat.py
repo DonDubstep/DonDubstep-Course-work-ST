@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+from ast import If
 import threading
 import time
 from datetime import datetime
@@ -23,7 +24,7 @@ def chat(ser,ser2):
     out_flag = []
     out_flag2 = []
 
-    def give_username():
+    def give_username():         
         while ser.another_username == None:
             time.sleep(1)
             if ser.is_open:
@@ -42,26 +43,52 @@ def chat(ser,ser2):
     counter = 0
     counter2 = 0
 
-    def check_connect():
-        global counter
-        time.sleep(10)
-        while True:
-            if ser.is_open:
-                listbox.insert(tk.END, "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + "ACK_LINKACTIVE")
-                listbox.itemconfig(counter, {'fg': 'gray'})
-                ser.ft_write("ACK_LINKACTIVE")
-                counter += 1
-                time.sleep(10)
+    # def check_connect():
+    #     global counter
+    #     time.sleep(10)
+    #     while True:
+    #         if ser.is_open:
+    #             user1.configure(text = ser.another_username)
+    #             listbox.insert(tk.END, "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + "ACK_LINKACTIVE")
+    #             listbox.itemconfig(counter, {'fg': 'gray'})
+    #             ser.ft_write("ACK_LINKACTIVE")
+    #             counter += 1
+    #             time.sleep(10)
 
+    global ask_flag
+    ask_flag = False
     def check_connect2():
+        global counter
         global counter2
+        global ask_flag
+        f = False
         time.sleep(10)
-        while True:
-            if ser.is_open:
-                listbox2.insert(tk.END, "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + "ACK_LINKACTIVE")
+        while 1:
+            if (f == False):
+                if ser2.is_open:#запускаем цикл асков
+                    listbox2.insert(tk.END, "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + "ACK(CHECK_CONNECTION)")
+                    listbox2.itemconfig(counter2, {'fg': 'gray'})
+                    ser2.ft_write("ACK")
+                    counter2 += 1
+                    f = True
+                    time.sleep(10)   
+            elif ask_flag == True:
+                listbox.insert(tk.END, "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + "ACK(LINKACTIVE)")
+                listbox.itemconfig(counter, {'fg': 'gray'})
+                counter += 1
+
+                listbox2.insert(tk.END, "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + "ACK(CHECK_CONNECTION)")
                 listbox2.itemconfig(counter2, {'fg': 'gray'})
-                ser2.ft_write("ACK_LINKACTIVE")
                 counter2 += 1
+                ser2.ft_write("ACK")
+                
+                ask_flag = False
+                time.sleep(10)
+            elif ask_flag == False:
+                listbox.insert(tk.END, "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "] " + "Connection lost!")
+                listbox.itemconfig(counter, {'fg': 'gray'})
+                counter += 1
+                ser2.ft_write("ACK")
                 time.sleep(10)
 
 
@@ -73,6 +100,7 @@ def chat(ser,ser2):
     # функция приема строки
     def fn_in():   #####################################
         global counter
+        global ask_flag
         global in_list
         global in_st
         while 1:
@@ -82,16 +110,13 @@ def chat(ser,ser2):
                     if ser.is_open:
                         data_to_read = ser.in_waiting
                         in_st = ser.ft_read(data_to_read)
-                        if in_st.find("ACK_LINKACTIVE") != -1:
-                            listbox.insert(tk.END,
-                                           "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "]" + " LINKACTIVE")
-                            listbox.itemconfig(counter, {'fg': 'gray'})
-                            counter += 1
-                            in_st = []
+                        if in_st.find("ACK") != -1:
+                            #ser2.ft_write("ACK_LINKACTIVE" + chr(ord(in_st[in_st.find("ACK_LINKACTIVE") + len("ACK_LINKACTIVE")])+1))
+                            ask_flag = True
                         elif in_st[:8] == "Username":
                             ser.another_username = in_st[8:]
-                            in_st = []
-                        elif in_st.find("|") != -1:
+                            user1.configure(text = ser.another_username)
+                        if in_st.find("|") != -1:
                             if in_st != '':
                                 dest = ""
                                 source = ""
@@ -106,6 +131,8 @@ def chat(ser,ser2):
                                         dest = source
                                         source = ""
                                 if dest != ser.username:
+                                    while (in_st.find("ACK") != -1):
+                                        in_st = in_st.replace('ACK','')
                                     fn_send2("|" + in_st)
                                 else:
                                     in_st = in_st.replace(dest+"|"+source+"|","")
@@ -126,14 +153,15 @@ def chat(ser,ser2):
                     if ser2.is_open:
                         data_to_read = ser2.in_waiting
                         in_st2 = ser2.ft_read(data_to_read)
-                        if in_st2 == "ACK_LINKACTIVE":
-                            listbox2.insert(tk.END,
-                                           "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "]" + " LINKACTIVE")
-                            listbox2.itemconfig(counter2, {'fg': 'gray'})
-                            counter2 += 1
-                            in_st2 = []
-                        elif in_st2[:8] == "Username":
+                        # if in_st2 == "ACK":
+                        #     listbox2.insert(tk.END,
+                        #                    "[" + datetime.strftime(datetime.now(), "%H:%M:%S") + "]" + "ACK(LINKACTIVE)")
+                        #     listbox2.itemconfig(counter2, {'fg': 'gray'})
+                        #     counter2 += 1
+                        #     in_st2 = []
+                        if in_st2[:8] == "Username":
                             ser2.another_username = in_st2[8:]
+                            user2.configure(text = ser2.another_username)
                             in_st2 = []
                 time.sleep(1)  ##-- CPU не будет нагреваться до 100C
 
@@ -144,8 +172,8 @@ def chat(ser,ser2):
     tr_in = threading.Thread(target=fn_in)
     tr_in.daemon = True
 
-    thread_2 = threading.Thread(target=check_connect)
-    thread_2.daemon = True
+    # thread_2 = threading.Thread(target=check_connect)
+    # thread_2.daemon = True
 
     thread_3_name = threading.Thread(target=give_username)
     thread_3_name.daemon = True
@@ -278,7 +306,7 @@ def chat(ser,ser2):
         window.after(100, fn_disp2)
 
     window = tk.Tk()
-
+    window.title("Текущий пользователь: " + ser.username)
     screen_width = window.winfo_screenwidth()#центрируем окно
     screen_height = window.winfo_screenheight()
 
@@ -303,12 +331,16 @@ def chat(ser,ser2):
 
     scrollbar.config(command=listbox.yview)
 
+    user1 = tk.Label(window, text = '1', bg = 'white', font=('Arial', 15), fg = 'black')
+    user1.place(x=0,y=340,width=25,height=40)
     enter = tk.Entry(window, font=('Arial', 15))
-    enter.place(x=0, y=340, width=300, height=40)
+    enter.place(x=25, y=340, width=275, height=40)
     enter.configure(bg='white')
 
+    user2 = tk.Label(window, text = '2', bg = 'white', font=('Arial', 15), fg = 'black')
+    user2.place(x=300,y=340,width=25,height=40)
     enter2 = tk.Entry(window, font=('Arial', 15))
-    enter2.place(x=300, y=340, width=300, height=40)
+    enter2.place(x=325, y=340, width=275, height=40)
     enter2.configure(bg='white')
 
     def open_port():
@@ -325,7 +357,7 @@ def chat(ser,ser2):
                 counter += 1
                 if start_thread == 0:
                     tr_in.start()
-                    thread_2.start()
+                    #thread_2.start()
                     thread_3_name.start()
                     start_thread = 1
         else:
@@ -356,6 +388,7 @@ def chat(ser,ser2):
                     start_thread2 = 1
         else:
             ser2.close()
+            tr_in.join()
             if ser2.is_open == False:
                 listbox2.insert(tk.END, "Port " + ser2.port + " is closed")
                 button_open2.config(text="Открыть порт")
