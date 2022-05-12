@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
 from asyncio.windows_events import NULL
 import tkinter as tk
 from tkinter.ttk import *

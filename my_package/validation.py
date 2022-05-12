@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
 from tkinter.messagebox import *
 from my_package.configurations import BAUDRATES, BYTESIZES, PARITIES, STOPBITS
 
